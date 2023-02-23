@@ -1,0 +1,274 @@
+@@ -140,7 +140,7 @@ public static void logReport(final SpeedTestReport report, final Logger logger)
+
+            switch (report.getSpeedTestMode()) {
+                case DOWNLOAD:
+                    logger.debug("downloaded for now     : " + report.getTemporaryPacketSize()
+                    logger.debug("downloaded for now   : " + report.getTemporaryPacketSize()
+                            + "/" + report.getTotalPacketSize());
+                    break;
+                case UPLOAD:
+@@ -152,7 +152,7 @@ public static void logReport(final SpeedTestReport report, final Logger logger)
+            }
+            if (report.getStartTime() > 0) {
+                logger.debug("amount of time       : " +
+                        ((report.getReportTime() - report.getStartTime()) / 1000) + "s");
+                        ((report.getReportTime() - report.getStartTime()) / 1000000000) + "s");
+            }
+            logger.debug(LOG_REPORT_SEPARATOR);
+        }
+  7  
+jspeedtest/src/main/java/fr/bmartel/speedtest/RepeatWrapper.java
+@@ -140,9 +140,10 @@ public SpeedTestReport getRepeatReport(final int scale,
+
+        if (mStartDateRepeat != 0) {
+            if (!mRepeatFinished) {
+                progressPercent = new BigDecimal(System.currentTimeMillis() - mStartDateRepeat).multiply
+                long test = System.nanoTime() - mStartDateRepeat;
+                progressPercent = new BigDecimal(test).multiply
+                        (SpeedTestConst.PERCENT_MAX)
+                        .divide(new BigDecimal(mRepeatWindows), scale, roundingMode);
+                        .divide(new BigDecimal(mRepeatWindows).multiply(new BigDecimal(1000000)), scale, roundingMode);
+            } else {
+                progressPercent = SpeedTestConst.PERCENT_MAX;
+            }
+@@ -170,7 +171,7 @@ public SpeedTestReport getRepeatReport(final int scale,
+            temporaryPacketSize = mRepeatTempPckSize;
+        } else {
+            temporaryPacketSize = mRepeatTempPckSize;
+            downloadRepeatReportTime = mStartDateRepeat + mRepeatWindows;
+            downloadRepeatReportTime = new BigDecimal(mStartDateRepeat).add(new BigDecimal(mRepeatWindows).multiply(new BigDecimal(1000000))).longValue();
+        }
+
+        return new SpeedTestReport(speedTestMode,
+  4  
+jspeedtest/src/main/java/fr/bmartel/speedtest/SpeedTestConst.java
+@@ -70,9 +70,9 @@ public class SpeedTestConst {
+    public static final BigDecimal PERCENT_MAX = new BigDecimal("100");
+
+    /**
+     * millisecond divider.
+     * nanosecond divider.
+     */
+    public static final BigDecimal MILLIS_DIVIDER = new BigDecimal("1000");
+    public static final BigDecimal NANO_DIVIDER = new BigDecimal("1000000000");
+
+    /**
+     * bit multiplier value.
+  8  
+jspeedtest/src/main/java/fr/bmartel/speedtest/SpeedTestReport.java
+@@ -58,12 +58,12 @@ public class SpeedTestReport {
+    private final BigDecimal mTransferRateBit;
+
+    /**
+     * upload start time in millis since 1970.
+     * upload start time in nanoseconds.
+     */
+    private final long mStartTime;
+
+    /**
+     * upload report time in millis since 1970.
+     * upload report time in nanoseconds.
+     */
+    private final long mReportTime;
+
+@@ -87,8 +87,8 @@ public class SpeedTestReport {
+     *
+     * @param speedTestMode     speed examples mode (DOWNLOAD/UPLOAD)
+     * @param progressPercent   speed examples progress in percent (%)
+     * @param startTime         upload start time in millis since 1970
+     * @param reportTime        upload report time in millis since 1970
+     * @param startTime         upload start time in nanoseconds
+     * @param reportTime        upload report time in nanoseconds
+     * @param tempPacketSize    current size of file to upload
+     * @param totalPacketSize   total file size
+     * @param transferRateOctet transfer rate in octet/s
+  60  
+jspeedtest/src/main/java/fr/bmartel/speedtest/SpeedTestTask.java
+@@ -369,8 +369,8 @@ public void writeUpload(final String uri, final int fileSizeOctet) {
+            mUploadTempFileSize = 0;
+            mUlComputationTempFileSize = 0;
+
+            mTimeStart = System.currentTimeMillis();
+            mTimeComputeStart = System.currentTimeMillis();
+            mTimeStart = System.nanoTime();
+            mTimeComputeStart = System.nanoTime();
+
+            connectAndExecuteTask(new Runnable() {
+                @Override
+@@ -385,7 +385,7 @@ public void run() {
+                            byte[] body = new byte[]{};
+
+                            if (mSocketInterface.getUploadStorageType() == UploadStorageType.RAM_STORAGE) {
+                            /* generate a file with size of fileSizeOctet octet */
+                                /* generate a file with size of fileSizeOctet octet */
+                                body = randomGen.generateRandomArray(fileSizeOctet);
+                            } else {
+                                uploadFile = randomGen.generateRandomFile(fileSizeOctet);
+@@ -416,8 +416,8 @@ public void run() {
+                                    throw new SocketTimeoutException();
+                                }
+
+                                mTimeStart = System.currentTimeMillis();
+                                mTimeComputeStart = System.currentTimeMillis();
+                                mTimeStart = System.nanoTime();
+                                mTimeComputeStart = System.nanoTime();
+                                mTimeEnd = 0;
+
+                                if (mRepeatWrapper.isFirstUpload()) {
+@@ -626,8 +626,8 @@ private void startSocketDownloadTask(final String protocol, final String hostnam
+                    mRepeatWrapper.updatePacketSize(mDownloadPckSize);
+                }
+
+                mTimeStart = System.currentTimeMillis();
+                mTimeComputeStart = System.currentTimeMillis();
+                mTimeStart = System.nanoTime();
+                mTimeComputeStart = System.nanoTime();
+                mTimeEnd = 0;
+
+                if (mRepeatWrapper.isFirstDownload()) {
+@@ -636,7 +636,7 @@ private void startSocketDownloadTask(final String protocol, final String hostnam
+                }
+
+                downloadReadingLoop();
+                mTimeEnd = System.currentTimeMillis();
+                mTimeEnd = System.nanoTime();
+
+                closeSocket();
+
+@@ -687,7 +687,7 @@ private void startSocketDownloadTask(final String protocol, final String hostnam
+        {
+            mReportInterval = false;
+            SpeedTestUtils.dispatchSocketTimeout(mForceCloseSocket, mListenerList, e.getMessage());
+            mTimeEnd = System.currentTimeMillis();
+            mTimeEnd = System.nanoTime();
+            closeSocket();
+            closeExecutors();
+        } catch (IOException |
+@@ -758,7 +758,7 @@ private void startSocketUploadTask(final String hostname, final int size) {
+
+                if (frame.getStatusCode() == SpeedTestConst.HTTP_OK && frame.getReasonPhrase().equalsIgnoreCase("ok")) {
+
+                    mTimeEnd = System.currentTimeMillis();
+                    mTimeEnd = System.nanoTime();
+                    mReportInterval = false;
+
+                    finishTask();
+@@ -919,7 +919,7 @@ public Integer call() {
+     * @param errorMessage error message from Exception
+     */
+    private void catchError(final String errorMessage) {
+        mTimeEnd = System.currentTimeMillis();
+        mTimeEnd = System.nanoTime();
+        closeSocket();
+        closeExecutors();
+        SpeedTestUtils.dispatchError(mSocketInterface, mForceCloseSocket, mListenerList, errorMessage);
+@@ -952,7 +952,7 @@ public SpeedTestReport getReport(final SpeedTestMode mode) {
+
+        long currentTime;
+        if (mTimeEnd == 0) {
+            currentTime = System.currentTimeMillis();
+            currentTime = System.nanoTime();
+        } else {
+            currentTime = mTimeEnd;
+        }
+@@ -964,24 +964,28 @@ public SpeedTestReport getReport(final SpeedTestMode mode) {
+
+        switch (mSocketInterface.getComputationMethod()) {
+            case MEDIAN_ALL_TIME:
+                if (shallCalculateTransferRate(currentTime) && (currentTime - mTimeStart) != 0) {
+                    transferRateOps = temporaryPacketSize.divide(new BigDecimal(currentTime - mTimeStart)
+                            .divide(SpeedTestConst.MILLIS_DIVIDER, scale, roundingMode), scale, roundingMode);
+                BigDecimal dividerAllTime = new BigDecimal(currentTime - mTimeComputeStart)
+                        .divide(SpeedTestConst.NANO_DIVIDER, scale, roundingMode);
+
+                if (shallCalculateTransferRate(currentTime) && dividerAllTime.compareTo(BigDecimal.ZERO) != 0) {
+                    transferRateOps = temporaryPacketSize.divide(dividerAllTime, scale, roundingMode);
+                }
+                break;
+            case MEDIAN_INTERVAL:
+
+                final BigDecimal tempPacket = (mode == SpeedTestMode.DOWNLOAD) ? new BigDecimal
+                        (mDlComputationTempPacketSize) : new BigDecimal(mUlComputationTempFileSize);
+
+                if (shallCalculateTransferRate(currentTime) && (currentTime - mTimeComputeStart) != 0) {
+                    transferRateOps = tempPacket.divide(new BigDecimal(currentTime - mTimeComputeStart)
+                            .divide(SpeedTestConst.MILLIS_DIVIDER, scale, roundingMode), scale, roundingMode);
+                BigDecimal dividerMedian = new BigDecimal(currentTime - mTimeComputeStart)
+                        .divide(SpeedTestConst.NANO_DIVIDER, scale, roundingMode);
+
+                if (shallCalculateTransferRate(currentTime) && dividerMedian.compareTo(BigDecimal.ZERO) != 0) {
+                    transferRateOps = tempPacket.divide(dividerMedian, scale, roundingMode);
+                }
+                // reset those values for the next computation
+                mDlComputationTempPacketSize = 0;
+                mUlComputationTempFileSize = 0;
+                mTimeComputeStart = System.currentTimeMillis();
+                mTimeComputeStart = System.nanoTime();
+                break;
+            default:
+                break;
+@@ -994,16 +998,12 @@ public SpeedTestReport getReport(final SpeedTestMode mode) {
+        SpeedTestReport report;
+
+        if (mRepeatWrapper.isRepeat()) {
+
+            report = mRepeatWrapper.getRepeatReport(scale, roundingMode, mode, currentTime, transferRateOps);
+
+        } else {
+
+            if (totalPacketSize.compareTo(BigDecimal.ZERO) != 0) {
+                percent = temporaryPacketSize.multiply(SpeedTestConst.PERCENT_MAX).divide(totalPacketSize, scale,
+                        roundingMode);
+            }
+
+            report = new SpeedTestReport(mode, percent.floatValue(),
+                    mTimeStart, currentTime, temporaryPacketSize.longValueExact(), totalPacketSize.longValueExact(),
+                    transferRateOps, transferRateBitps,
+@@ -1095,8 +1095,8 @@ public void run() {
+                        mDownloadTemporaryPacketSize = 0;
+                        mDlComputationTempPacketSize = 0;
+
+                        mTimeStart = System.currentTimeMillis();
+                        mTimeComputeStart = System.currentTimeMillis();
+                        mTimeStart = System.nanoTime();
+                        mTimeComputeStart = System.nanoTime();
+
+                        mTimeEnd = 0;
+
+@@ -1142,7 +1142,7 @@ public void run() {
+
+                            mFtpInputstream.close();
+
+                            mTimeEnd = System.currentTimeMillis();
+                            mTimeEnd = System.nanoTime();
+
+                            mReportInterval = false;
+                            final SpeedTestReport report = getReport(SpeedTestMode.DOWNLOAD);
+@@ -1232,7 +1232,7 @@ public void run() {
+                        byte[] fileContent = new byte[]{};
+
+                        if (mSocketInterface.getUploadStorageType() == UploadStorageType.RAM_STORAGE) {
+                        /* generate a file with size of fileSizeOctet octet */
+                            /* generate a file with size of fileSizeOctet octet */
+                            fileContent = randomGen.generateRandomArray(fileSizeOctet);
+                        } else {
+                            uploadFile = randomGen.generateRandomFile(fileSizeOctet);
+@@ -1251,8 +1251,8 @@ public void run() {
+                            final int step = fileSizeOctet / uploadChunkSize;
+                            final int remain = fileSizeOctet % uploadChunkSize;
+
+                            mTimeStart = System.currentTimeMillis();
+                            mTimeComputeStart = System.currentTimeMillis();
+                            mTimeStart = System.nanoTime();
+                            mTimeComputeStart = System.nanoTime();
+                            mTimeEnd = 0;
+
+                            if (mRepeatWrapper.isFirstUpload()) {
+@@ -1328,7 +1328,7 @@ public void run() {
+
+                                    }
+                                }
+                                mTimeEnd = System.currentTimeMillis();
+                                mTimeEnd = System.nanoTime();
+                                mFtpOutputstream.close();
+                                mReportInterval = false;
